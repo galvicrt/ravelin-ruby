@@ -1,4 +1,6 @@
 require 'faraday_middleware/response_middleware'
+require 'logger'
+require 'net/http'
 
 # This is a hack to compensate for Ravelin sending `null` in the response for 200's.
 class FaradayMiddleware::ParseJson
@@ -10,16 +12,19 @@ end
 module Ravelin
   class Client
     API_BASE = 'https://api.ravelin.com'
+    SANDBOX_BASE = 'http://sandbox.api.ravelin.com'
 
-    def initialize(api_key:, api_version: 2, include_rule_output: false)
+    def initialize(api_key:, api_version: 2, include_rule_output: false, sandbox: false, logger: nil)
       @api_key = api_key
+      @sandbox = sandbox
+      @logger = logger || Logger.new($stdout)
       @url_prefix = ''
       @include_rule_output = include_rule_output
 
       raise ArgumentError.new("api_version must be 2 or 3") unless [2,3].include? api_version
       @api_version = api_version
 
-      @connection = Faraday.new(API_BASE, faraday_options) do |conn|
+      @connection = Faraday.new(base_url, faraday_options) do |conn|
         conn.response :json, context_type: /\bjson$/
         conn.adapter Ravelin.faraday_adapter
       end
@@ -66,9 +71,31 @@ module Ravelin
       get("#{@url_prefix}/v#{@api_version}/tag/customer/#{customer_id}")
     end
 
+    # Look up a customer record by ID.
+    def get_customer(customer_id)
+      uri = URI("#{base_url}/v#{@api_version}/customer/#{customer_id}")
+      request = Net::HTTP::Get.new(uri)
+      request['Authorization'] = "token #{@api_key}"
+
+      response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https') do |http|
+        http.request(request)
+      end
+
+      JSON.parse(response.body)
+    rescue StandardError => e
+      @logger.warn("[ravelin] customer lookup failed: #{e.message}")
+      nil
+    end
+
     private
 
+    def base_url
+      @sandbox ? SANDBOX_BASE : API_BASE
+    end
+
     def post(url, payload, headers = {})
+      @logger.debug("[ravelin] POST #{url} headers=#{@connection.headers.merge(headers || {})}")
+
       response = @connection.post(url, payload.to_json) do |request|
         headers&.each { |key, value|
           request.headers[key] = value
