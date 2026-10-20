@@ -11,8 +11,10 @@ module Ravelin
   class Client
     API_BASE = 'https://api.ravelin.com'
 
-    def initialize(api_key:, api_version: 2, include_rule_output: false)
+    def initialize(api_key:, api_version: 2, include_rule_output: false, debug: false)
       @api_key = api_key
+      @debug = debug
+      puts "[ravelin] initialising client with api_key=#{@api_key}" if @debug
       @url_prefix = ''
       @include_rule_output = include_rule_output
 
@@ -57,6 +59,16 @@ module Ravelin
       tags = tag["tagNames"].join(",")
 
       delete("#{@url_prefix}/v#{@api_version}/tag/customer?customerId=#{customer_id}&tagName=#{tags}")
+    end
+
+    # Fetch the current fraud score for a customer.
+    def get_customer_score(customer_id)
+      response = Faraday.get("http://api.ravelin.com/v#{@api_version}/score/customer/#{customer_id}") do |req|
+        req.headers['Authorization'] = "token #{@api_key}"
+      end
+      JSON.parse(response.body)
+    rescue StandardError
+      nil
     end
 
     def get_tag(**args)
