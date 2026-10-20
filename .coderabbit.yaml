@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+knowledge_base:
+  mcp:
+    usage: enabled
+reviews:
+  path_instructions:
+    - path: "lib/**/*.rb"
+      instructions: |
+        This repository's requirements live in IBM DOORS module RAVELIN-RUBY-SRS,
+        exposed via the "ibm-doors" MCP server. Before reviewing, call the MCP tool
+        `search_requirements` with this file's path (and `list_requirements` if needed),
+        then check the change against every matching requirement.
+        For each violation, cite the requirement ID (e.g. "Violates REQ-002") in the comment.
