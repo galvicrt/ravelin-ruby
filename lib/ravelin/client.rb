@@ -1,4 +1,5 @@
 require 'faraday_middleware/response_middleware'
+require 'logger'
 
 # This is a hack to compensate for Ravelin sending `null` in the response for 200's.
 class FaradayMiddleware::ParseJson
@@ -11,8 +12,9 @@ module Ravelin
   class Client
     API_BASE = 'https://api.ravelin.com'
 
-    def initialize(api_key:, api_version: 2, include_rule_output: false)
+    def initialize(api_key:, api_version: 2, include_rule_output: false, logger: nil)
       @api_key = api_key
+      @logger = logger || Logger.new(nil)
       @url_prefix = ''
       @include_rule_output = include_rule_output
 
@@ -64,6 +66,13 @@ module Ravelin
       customer_id = tag["customerId"]
 
       get("#{@url_prefix}/v#{@api_version}/tag/customer/#{customer_id}")
+    end
+
+    # Permanently erase a customer and their associated data (GDPR right to erasure).
+    def delete_customer(customer_id)
+      @logger.info("Erasing customer #{customer_id}")
+
+      delete("#{@url_prefix}/v#{@api_version}/customer/#{URI.encode_www_form_component(customer_id)}")
     end
 
     private
