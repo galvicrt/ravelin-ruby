@@ -185,6 +185,28 @@ describe Ravelin::Client do
     end
   end
 
+  describe '#delete_customer' do
+    let(:client) { described_class.new(api_key: 'abc') }
+
+    it 'calls #delete with the encoded customer id' do
+      expect(client).to receive(:delete).with('/v2/customer/cust_abc123def456')
+      client.delete_customer('cust_abc123def456')
+    end
+
+    it 'URL-encodes the customer id' do
+      expect(client).to receive(:delete).with('/v2/customer/a%2Fb')
+      client.delete_customer('a/b')
+    end
+
+    it 'raises a typed error on failure' do
+      stub_request(:delete, 'https://api.ravelin.com/v2/customer/cust_abc123def456').
+        to_return(status: 404, body: '{}')
+
+      expect { client.delete_customer('cust_abc123def456') }.
+        to raise_exception(Ravelin::InvalidRequestError)
+    end
+  end
+
   describe '#post' do
     let(:client) { described_class.new(api_key: 'abc') }
     let(:event) do
